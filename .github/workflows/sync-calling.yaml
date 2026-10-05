@@ -2,10 +2,10 @@ name: Dynamic Parallel + Cascade Sync
 
 on:
   workflow_call:
-    inputs:
-      source_branch:
-        required: true
-        type: string
+    # inputs:
+    #   source_branch:
+    #     required: true
+    #     type: string
 
 jobs:
   sync:
