@@ -21,73 +21,39 @@ jobs:
       - name: Read branch flow
         id: branch_flow
         run: |
-          SRC="${{ inputs.source_branch }}"
-
+          SRC="${{ github.event.pull_request.base.ref }}"
           echo "Merged into: $SRC"
 
           TARGETS=$(jq -r --arg b "$SRC" '.[$b] | join(",")' .github/sync-flow.json)
-
-          if [ "$TARGETS" != "null" ] && [ -n "$TARGETS" ]; then
-            echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
-            echo "Target branches: $TARGETS"
-          else
-            echo "No target branches configured for $SRC"
+          if [ "$TARGETS" != "null" ]; then
+            echo "targets=$TARGETS" >> $GITHUB_OUTPUT
           fi
 
       - name: Trigger PRs
-        if: ${{ steps.branch_flow.outputs.targets != '' }}
+        if: ${{ steps.branch_flow.outputs.targets }}
         run: |
-          SRC="${{ inputs.source_branch }}"
-
+          SRC="${{ github.event.pull_request.base.ref }}"
           IFS=',' read -ra TARGETS <<< "${{ steps.branch_flow.outputs.targets }}"
 
           for DEST in "${TARGETS[@]}"; do
-
-            echo "======================================"
-            echo "Checking changes: $SRC → $DEST"
-            echo "======================================"
-
+            echo "Checking changes between $SRC → $DEST"
             git fetch origin "$DEST"
-
-            DIFF=$(git diff --name-status "origin/$DEST..origin/$SRC")
+            DIFF=$(git diff --name-status origin/$DEST..$SRC)
 
             if [ -n "$DIFF" ]; then
-
-              echo "Changes detected."
-              echo "$DIFF"
-
-              EXISTING=$(gh pr list \
-                --base "$DEST" \
-                --head "$SRC" \
-                --state open \
-                --json number \
-                --jq '.[0].number')
-
+              echo "Changes detected, raising PR..."
+              EXISTING=$(gh pr list --base "$DEST" --head "$SRC" --json number --jq '.[0].number')
               if [ -n "$EXISTING" ]; then
-
-                echo "PR already exists: #$EXISTING"
-
-                gh pr edit "$EXISTING" \
-                  --title "Auto-sync: $SRC → $DEST" \
-                  --body "Refreshed by reusable sync workflow."
-
+                echo "PR already exists (#$EXISTING), refreshing..."
+                gh pr edit "$EXISTING" --title "Auto-sync: $SRC → $DEST" --body "Refreshed by workflow"
               else
-
-                echo "Creating PR..."
-
-                gh pr create \
-                  --base "$DEST" \
-                  --head "$SRC" \
+                gh pr create --base "$DEST" --head "$SRC" \
                   --title "Auto-sync: $SRC → $DEST" \
-                  --body "Triggered by merge into $SRC."
-
+                  --body "Triggered by PR merge into $SRC"
               fi
-
             else
-              echo "No changes detected."
-              echo "Skipping PR for $SRC → $DEST"
+              echo "No changes detected, skipping PR for $SRC → $DEST"
             fi
           done
-
-        env:
+        env:     
           GH_TOKEN: ${{ secrets.DYNAMIC_SYNC_TOKEN }}
