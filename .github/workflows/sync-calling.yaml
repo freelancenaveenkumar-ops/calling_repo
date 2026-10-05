@@ -20,11 +20,14 @@ jobs:
 
       - name: Read branch flow
         id: branch_flow
+        env:
+          SYNC_FLOW: ${{ vars.SYNC_FLOW }}
         run: |
           SRC="${{ github.event.pull_request.base.ref }}"
           echo "Merged into: $SRC"
 
-          TARGETS=$(jq -r --arg b "$SRC" '.[$b] | join(",")' .github/sync-flow.json)
+          # TARGETS=$(jq -r --arg b "$SRC" '.[$b] | join(",")' .github/sync-flow.json)
+          TARGETS=$(echo "$SYNC_FLOW" | jq -r --arg b "$SRC" '.[$b] | join(",")')
           if [ "$TARGETS" != "null" ]; then
             echo "targets=$TARGETS" >> $GITHUB_OUTPUT
           fi
