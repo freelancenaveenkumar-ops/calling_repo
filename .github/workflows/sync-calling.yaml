@@ -24,7 +24,7 @@ jobs:
           SRC="${{ github.event.pull_request.base.ref }}"
           echo "Merged into: $SRC"
 
-          TARGETS=$(jq -r --arg b "$SRC" '.[$b] | join(",")' freelancenaveenkumar-ops/calling_repo/.github/sync-flow.json)
+          TARGETS=$(jq -r --arg b "$SRC" '.[$b] | join(",")' .github/sync-flow.json)
           if [ "$TARGETS" != "null" ]; then
             echo "targets=$TARGETS" >> $GITHUB_OUTPUT
           fi
